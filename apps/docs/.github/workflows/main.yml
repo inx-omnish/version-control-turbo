@@ -1,0 +1,68 @@
+name: Sync Changes to Monorepo
+
+on:
+  push:
+    branches:
+      - main  # Trigger workflow on main branch in individual repo
+
+jobs:
+  sync-to-monorepo:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the individual repo (docs or web)
+      - name: Checkout Source Repository
+        uses: actions/checkout@v3
+
+      # Clone the monorepo (only for comparison)
+      - name: Clone Monorepo
+        run: |
+          git clone https://$MONOREPO_PAT@github.com/inx-omnish/version-control-turbo.git monorepo
+        env:
+          MONOREPO_PAT: ${{ secrets.MONOREPO_PAT }}
+
+      # Copy only changes from the individual repo to the monorepo
+      - name: Sync Changes to Monorepo Directory
+        run: |
+          rsync -av --exclude='.git' ./ monorepo/apps/docs/  # Adjust target path if needed
+
+      # Remove the .git folder in the monorepo/apps/docs to avoid submodule issues
+      - name: Remove Nested .git Folder
+        run: |
+          rm -rf monorepo/apps/docs/.git  # Adjust path if needed
+
+      # Commit only the changes in `monorepo/apps/docs`, excluding the monorepo folder itself
+      - name: Create a New Branch and Commit Changes
+        working-directory: monorepo
+        run: |
+          # Configure Git user
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create a unique branch name
+          branch_name="sync-${{ github.ref_name }}-$(date +'%Y%m%d%H%M%S')"
+          echo "branch_name=${branch_name}" >> $GITHUB_ENV
+
+          # Create new branch and add only relevant changes
+          git checkout -b "$branch_name"
+          git add apps/docs  # Only add the changes in apps/docs
+          git commit -m "Sync changes from ${{ github.event.repository.name }} repo"
+          git push origin "$branch_name"
+        env:
+          MONOREPO_PAT: ${{ secrets.MONOREPO_PAT }}
+
+      # Create a Pull Request in the monorepo
+      - name: Create Pull Request in Monorepo
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.MONOREPO_PAT }}
+          commit-message: "Sync changes from ${{ github.event.repository.name }} repo"
+          branch: ${{ env.branch_name }}
+          base: main
+          title: "Sync changes from ${{ github.event.repository.name }} repo"
+          body: "Automated PR to sync changes from ${{ github.event.repository.name }} repository."
+
+      # Clean up by removing the monorepo folder
+      - name: Remove Monorepo Folder
+        run: |
+          rm -rf monorepo  # Remove the cloned monorepo folder after the PR creation
