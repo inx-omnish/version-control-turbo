@@ -1,0 +1,81 @@
+name: Sync Changes to Monorepo
+
+on:
+    push:
+        branches:
+            - main # The branch in your individual repo (`docs` or `web`) to trigger this workflow
+
+jobs:
+    sync-to-monorepo:
+        runs-on: ubuntu-latest
+
+        steps:
+            # Checkout the individual repo (docs or web)
+            - name: Checkout Source Repository
+              uses: actions/checkout@v3
+
+            # Clone the monorepo (we will push and create a PR here)
+            - name: Clone Monorepo
+              run: |
+                  git clone https://$MONOREPO_PAT@github.com/inx-omnish/version-control-turbo.git monorepo
+              env:
+                  MONOREPO_PAT: ${{ secrets.MONOREPO_PAT }}
+
+            # Copy changes from the individual repo to the monorepo
+            - name: Copy Changes to Monorepo
+              run: |
+                  rsync -av --exclude='.git' ./ monorepo/apps/docs/  # Adjust the target path if needed
+
+            # Remove any nested .git folder to avoid submodule issues
+            - name: Remove Nested .git Folder
+              run: |
+                  rm -rf monorepo/apps/docs/.git  # Adjust path if needed
+
+            # Set up Git for creating a branch and pushing in the monorepo
+            - name: Commit and Push Changes to Monorepo
+              working-directory: monorepo
+              run: |
+                  # Configure Git
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+
+                  # Create a unique branch name
+                  branch_name="sync-${{ github.event.repository.name }}-$(date +'%Y%m%d%H%M%S')"
+                  echo "branch_name=${branch_name}" >> $GITHUB_ENV  # Export branch name as an environment variable
+
+                  # Switch to new branch, commit, and push changes
+                  git checkout -b "$branch_name"
+                  git add .
+                  git commit -m "Sync changes from ${{ github.event.repository.name }} repo"
+                  git push origin "$branch_name"
+              env:
+                  MONOREPO_PAT: ${{ secrets.MONOREPO_PAT }}
+
+            # Verify if the branch exists in the monorepo after pushing
+            - name: Verify Branch in Monorepo
+              working-directory: monorepo
+              run: |
+                  git ls-remote --heads origin $branch_name
+
+            # Trigger a PR creation in the monorepo
+            - name: Trigger PR Creation in Monorepo
+              uses: actions/github-script@v6
+              with:
+                  script: |
+                      console.log("Branch name:", process.env.branch_name);  // Debug log
+                      await github.rest.pulls.create({
+                        owner: 'inx-omnish',
+                        repo: 'version-control-turbo',
+                        title: `Sync changes from ${{ github.event.repository.name }} repo`,
+                        head: process.env.branch_name,
+                        base: 'main',
+                        body: "Automated PR to sync changes from ${{ github.event.repository.name }} repository."
+                      });
+              env:
+                  MONOREPO_PAT: ${{ secrets.MONOREPO_PAT }}
+                  branch_name: ${{ env.branch_name }}
+
+            # Clean up by removing the monorepo folder
+            - name: Remove Entire Monorepo Folder
+              run: |
+                  rm -rf monorepo  # This deletes the cloned monorepo folder
