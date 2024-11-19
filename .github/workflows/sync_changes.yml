@@ -51,17 +51,21 @@ jobs:
             rsync -av --exclude='.git' --delete ./ apps/web/
           fi
 
-
-      - name: Create Branch and Push Changes
+      - name: Create Branch and Commit Changes
         run: |
           TIMESTAMP=$(date +%s)
           BRANCH_NAME="sync-${SOURCE_REPO##*/}-${TIMESTAMP}"
           git checkout -b $BRANCH_NAME
+          git add .
           git commit -m "Sync changes from $SOURCE_REPO to monorepo"
-          git push https://x-access-token:${{ secrets.MONOREPO_PAT }}@github.com/inx-omnish/version-control-turbo.git $BRANCH_NAME
         env:
           SOURCE_REPO: inx-omnish/version-control-turbo-doc
 
+      - name: Push Changes to Monorepo
+        run: |
+          git push https://x-access-token:${{ secrets.MONOREPO_PAT }}@github.com/inx-omnish/version-control-turbo.git $BRANCH_NAME
+        env:
+          MONOREPO_PAT: ${{ secrets.MONOREPO_PAT }}
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
