@@ -24,17 +24,18 @@ jobs:
         run: |
           echo "SOURCE_REPO=${{ github.event.client_payload.repo }}" >> $GITHUB_ENV
 
-      - name: Fetch Changes from Source Repo
+      - name: Fetch and Merge Changes from Source Repo with Theirs Strategy
         run: |
           if [[ "$SOURCE_REPO" == *"/version-control-turbo-web" ]]; then
             git remote add web-repo https://github.com/inx-omnish/version-control-turbo-web.git
             git fetch web-repo main
-            git merge web-repo/main --allow-unrelated-histories -m "Merge updates from web repo"
+            git merge web-repo/main --allow-unrelated-histories -X theirs -m "Merge updates from web repo with theirs strategy"
           elif [[ "$SOURCE_REPO" == *"/version-control-turbo-doc" ]]; then
             git remote add doc-repo https://github.com/inx-omnish/version-control-turbo-doc.git
             git fetch doc-repo main
-            git merge doc-repo/main --allow-unrelated-histories -m "Merge updates from doc repo"
+            git merge doc-repo/main --allow-unrelated-histories -X theirs -m "Merge updates from doc repo with theirs strategy"
           fi
+
 
       - name: Create Branch for Sync
         run: |
