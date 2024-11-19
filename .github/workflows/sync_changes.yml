@@ -34,20 +34,20 @@ jobs:
             git fetch web-repo main
           fi
 
-      - name: Ensure Target Directory Exists
+      - name: Checkout Full Changes from Source Repo into Target Directory
         run: |
           if [[ "$SOURCE_REPO" == *"/version-control-turbo-doc" ]]; then
-            mkdir -p apps/docs  # Ensure apps/docs exists for doc repo
+            # Checkout all changes from doc repo into /apps/docs directory in the monorepo
+            git checkout doc-repo/main -- .
+            git rm -r --cached apps/web  # Remove web-related files if any
+            mv * apps/docs  # Move everything from the root to apps/docs
+            git add apps/docs  # Add the changes to apps/docs
           elif [[ "$SOURCE_REPO" == *"/version-control-turbo-web" ]]; then
-            mkdir -p apps/web  # Ensure apps/web exists for web repo
-          fi
-
-      - name: Merge Changes into Correct Subdirectory
-        run: |
-          if [[ "$SOURCE_REPO" == *"/version-control-turbo-doc" ]]; then
-            git checkout doc-repo/main -- apps/docs  # Merge only changes to apps/docs
-          elif [[ "$SOURCE_REPO" == *"/version-control-turbo-web" ]]; then
-            git checkout web-repo/main -- apps/web  # Merge only changes to apps/web
+            # Checkout all changes from web repo into /apps/web directory in the monorepo
+            git checkout web-repo/main -- .
+            git rm -r --cached apps/docs  # Remove doc-related files if any
+            mv * apps/web  # Move everything from the root to apps/web
+            git add apps/web  # Add the changes to apps/web
           fi
 
       - name: Create Branch for Sync Changes
@@ -55,7 +55,6 @@ jobs:
           TIMESTAMP=$(date +%s)
           BRANCH_NAME="sync-${SOURCE_REPO##*/}-${TIMESTAMP}"
           git checkout -b $BRANCH_NAME
-          git add apps/docs  # Add only the changes in apps/docs or apps/web
           git commit -m "Sync changes from $SOURCE_REPO to monorepo"
           git push origin $BRANCH_NAME
         env:
