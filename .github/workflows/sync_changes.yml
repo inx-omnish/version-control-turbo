@@ -12,8 +12,7 @@ jobs:
       - name: Checkout Monorepo
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.MONOREPO_PAT }}  # Use a personal access token for repo access
-          fetch-depth: 0
+          fetch-depth: 0  # Fetch all history for the monorepo
 
       - name: Set up Git
         run: |
@@ -27,20 +26,28 @@ jobs:
 
       - name: Fetch Changes from Source Repo
         run: |
-          if [[ "$SOURCE_REPO" == *"/version-control-turbo-web" ]]; then
-            git remote add web-repo https://github.com/inx-omnish/version-control-turbo-web.git
-            git fetch web-repo main
-          elif [[ "$SOURCE_REPO" == *"/version-control-turbo-doc" ]]; then
+          if [[ "$SOURCE_REPO" == *"/version-control-turbo-doc" ]]; then
             git remote add doc-repo https://github.com/inx-omnish/version-control-turbo-doc.git
             git fetch doc-repo main
+          elif [[ "$SOURCE_REPO" == *"/version-control-turbo-web" ]]; then
+            git remote add web-repo https://github.com/inx-omnish/version-control-turbo-web.git
+            git fetch web-repo main
           fi
 
-      - name: Merge Changes into Subdirectory
+      - name: Ensure Target Directory Exists
         run: |
-          if [[ "$SOURCE_REPO" == *"/version-control-turbo-web" ]]; then
-            git checkout web-repo/main -- apps/web  # Merge only changes to the apps/web directory
-          elif [[ "$SOURCE_REPO" == *"/version-control-turbo-doc" ]]; then
-            git checkout doc-repo/main -- apps/docs  # Merge only changes to the apps/doc directory
+          if [[ "$SOURCE_REPO" == *"/version-control-turbo-doc" ]]; then
+            mkdir -p apps/docs  # Ensure apps/docs exists for doc repo
+          elif [[ "$SOURCE_REPO" == *"/version-control-turbo-web" ]]; then
+            mkdir -p apps/web  # Ensure apps/web exists for web repo
+          fi
+
+      - name: Merge Changes into Correct Subdirectory
+        run: |
+          if [[ "$SOURCE_REPO" == *"/version-control-turbo-doc" ]]; then
+            git checkout doc-repo/main -- apps/docs  # Merge only changes to apps/docs
+          elif [[ "$SOURCE_REPO" == *"/version-control-turbo-web" ]]; then
+            git checkout web-repo/main -- apps/web  # Merge only changes to apps/web
           fi
 
       - name: Create Branch for Sync Changes
@@ -48,8 +55,8 @@ jobs:
           TIMESTAMP=$(date +%s)
           BRANCH_NAME="sync-${SOURCE_REPO##*/}-${TIMESTAMP}"
           git checkout -b $BRANCH_NAME
-          git add apps/web apps/doc  # Add changes only in the apps subdirectories
-          git commit -m "Sync changes from ${SOURCE_REPO##*/} to monorepo"
+          git add apps/docs  # Add only the changes in apps/docs or apps/web
+          git commit -m "Sync changes from $SOURCE_REPO to monorepo"
           git push origin $BRANCH_NAME
         env:
           GITHUB_TOKEN: ${{ secrets.MONOREPO_PAT }}
@@ -60,5 +67,5 @@ jobs:
           token: ${{ secrets.MONOREPO_PAT }}
           branch: $BRANCH_NAME
           title: "Sync updates from $SOURCE_REPO"
-          body: "Automated PR to sync changes from $SOURCE_REPO main branch to /apps directory."
+          body: "Automated PR to sync changes from $SOURCE_REPO to the appropriate subdirectory in monorepo."
           base: main
