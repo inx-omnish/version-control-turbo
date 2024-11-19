@@ -47,15 +47,16 @@ jobs:
           fi
 
 
-      - name: Create Branch for Sync Changes
+      - name: Create Branch and Push Changes
         run: |
           TIMESTAMP=$(date +%s)
           BRANCH_NAME="sync-${SOURCE_REPO##*/}-${TIMESTAMP}"
           git checkout -b $BRANCH_NAME
           git commit -m "Sync changes from $SOURCE_REPO to monorepo"
-          git push origin $BRANCH_NAME
+          git push https://x-access-token:${{ secrets.MONOREPO_PAT }}@github.com/inx-omnish/version-control-turbo.git $BRANCH_NAME
         env:
-          GITHUB_TOKEN: ${{ secrets.MONOREPO_PAT }}
+          SOURCE_REPO: inx-omnish/version-control-turbo-doc
+
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
