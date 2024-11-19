@@ -1,0 +1,56 @@
+name: Sync Changes from Individual Repos
+
+on:
+  repository_dispatch:
+    types: [update_from_individual_repo]
+
+jobs:
+  sync_changes:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Monorepo
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.MONOREPO_PAT }}  # Use PAT instead of GITHUB_TOKEN
+          fetch-depth: 0
+
+      - name: Set up Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Identify Source Repo
+        id: source_repo
+        run: |
+          echo "SOURCE_REPO=${{ github.event.client_payload.repo }}" >> $GITHUB_ENV
+
+      - name: Fetch and Merge Changes from Source Repo with Theirs Strategy
+        run: |
+          if [[ "$SOURCE_REPO" == *"/version-control-turbo-web" ]]; then
+            git remote add web-repo https://github.com/inx-omnish/version-control-turbo-web.git
+            git fetch web-repo main
+            git merge web-repo/main --allow-unrelated-histories -X theirs -m "Merge updates from web repo with theirs strategy"
+          elif [[ "$SOURCE_REPO" == *"/version-control-turbo-doc" ]]; then
+            git remote add doc-repo https://github.com/inx-omnish/version-control-turbo-doc.git
+            git fetch doc-repo main
+            git merge doc-repo/main --allow-unrelated-histories -X theirs -m "Merge updates from doc repo with theirs strategy"
+          fi
+
+      - name: Create Branch for Sync
+        run: |
+          TIMESTAMP=$(date +%s)
+          BRANCH_NAME="sync-${SOURCE_REPO##*/}-${TIMESTAMP}"
+          git checkout -b $BRANCH_NAME
+          git push origin $BRANCH_NAME
+        env:
+          GITHUB_TOKEN: ${{ secrets.MONOREPO_PAT }}  # Use PAT for pushing changes
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.MONOREPO_PAT }}  # Use PAT to create the PR
+          branch: $BRANCH_NAME
+          title: "Sync updates from $SOURCE_REPO"
+          body: "Automated PR to sync changes from $SOURCE_REPO main branch."
+          base: main
