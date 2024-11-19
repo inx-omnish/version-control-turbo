@@ -29,20 +29,23 @@ jobs:
           if [[ "$SOURCE_REPO" == *"/version-control-turbo-doc" ]]; then
             git remote add doc-repo https://github.com/inx-omnish/version-control-turbo-doc.git
             git fetch doc-repo main
+            git checkout doc-repo/main -- .  # Checkout the content of the doc repo
           elif [[ "$SOURCE_REPO" == *"/version-control-turbo-web" ]]; then
             git remote add web-repo https://github.com/inx-omnish/version-control-turbo-web.git
             git fetch web-repo main
+            git checkout web-repo/main -- .  # Checkout the content of the web repo
           fi
 
       - name: Overwrite Content in Target Directory
         run: |
           if [[ "$SOURCE_REPO" == *"/version-control-turbo-doc" ]]; then
             # Sync content from doc repo to apps/docs in the monorepo
-            rsync -av --exclude='.git' --delete doc-repo/main/ apps/docs/
+            rsync -av --exclude='.git' --delete ./ apps/docs/
           elif [[ "$SOURCE_REPO" == *"/version-control-turbo-web" ]]; then
             # Sync content from web repo to apps/web in the monorepo
-            rsync -av --exclude='.git' --delete web-repo/main/ apps/web/
+            rsync -av --exclude='.git' --delete ./ apps/web/
           fi
+
 
       - name: Create Branch for Sync Changes
         run: |
