@@ -35,25 +35,21 @@ jobs:
             git fetch doc-repo main
           fi
 
-      - name: Merge Changes from Source Repo to Monorepo Subdirectory
+      - name: Merge Changes into Subdirectory
         run: |
           if [[ "$SOURCE_REPO" == *"/version-control-turbo-web" ]]; then
-            git checkout web-repo/main -- .
-            mkdir -p apps/web
-            cp -R ./* apps/web  # Copy the changes to apps/web directory
+            git checkout web-repo/main -- apps/web  # Merge only changes to the apps/web directory
           elif [[ "$SOURCE_REPO" == *"/version-control-turbo-doc" ]]; then
-            git checkout doc-repo/main -- .
-            mkdir -p apps/doc
-            cp -R ./* apps/doc  # Copy the changes to apps/doc directory
+            git checkout doc-repo/main -- apps/doc  # Merge only changes to the apps/doc directory
           fi
 
-      - name: Commit Changes to New Branch
+      - name: Create Branch for Sync Changes
         run: |
           TIMESTAMP=$(date +%s)
           BRANCH_NAME="sync-${SOURCE_REPO##*/}-${TIMESTAMP}"
           git checkout -b $BRANCH_NAME
-          git add apps/web apps/doc  # Stage the relevant subdirectory changes
-          git commit -m "Sync updates from ${SOURCE_REPO##*/} to /apps directory"
+          git add apps/web apps/doc  # Add changes only in the apps subdirectories
+          git commit -m "Sync changes from ${SOURCE_REPO##*/} to monorepo"
           git push origin $BRANCH_NAME
         env:
           GITHUB_TOKEN: ${{ secrets.MONOREPO_PAT }}
@@ -64,5 +60,5 @@ jobs:
           token: ${{ secrets.MONOREPO_PAT }}
           branch: $BRANCH_NAME
           title: "Sync updates from $SOURCE_REPO"
-          body: "Automated PR to sync changes from $SOURCE_REPO main branch to /apps."
+          body: "Automated PR to sync changes from $SOURCE_REPO main branch to /apps directory."
           base: main
