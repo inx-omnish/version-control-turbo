@@ -34,20 +34,14 @@ jobs:
             git fetch web-repo main
           fi
 
-      - name: Checkout Full Changes from Source Repo into Target Directory
+      - name: Overwrite Content in Target Directory
         run: |
           if [[ "$SOURCE_REPO" == *"/version-control-turbo-doc" ]]; then
-            # Checkout all changes from doc repo into /apps/docs directory in the monorepo
-            git checkout doc-repo/main -- .
-            git rm -r --cached apps/web  # Remove web-related files if any
-            mv * apps/docs  # Move everything from the root to apps/docs
-            git add apps/docs  # Add the changes to apps/docs
+            # Sync content from doc repo to apps/docs in the monorepo
+            rsync -av --exclude='.git' --delete doc-repo/main/ apps/docs/
           elif [[ "$SOURCE_REPO" == *"/version-control-turbo-web" ]]; then
-            # Checkout all changes from web repo into /apps/web directory in the monorepo
-            git checkout web-repo/main -- .
-            git rm -r --cached apps/docs  # Remove doc-related files if any
-            mv * apps/web  # Move everything from the root to apps/web
-            git add apps/web  # Add the changes to apps/web
+            # Sync content from web repo to apps/web in the monorepo
+            rsync -av --exclude='.git' --delete web-repo/main/ apps/web/
           fi
 
       - name: Create Branch for Sync Changes
