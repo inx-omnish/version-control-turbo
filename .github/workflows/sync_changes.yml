@@ -16,6 +16,11 @@ jobs:
 
       - name: Set up Git
         run: |
+          # Clear any previous credentials
+          git config --unset user.name
+          git config --unset user.email
+      
+          # Configure Git with a proper username and email
           git config user.name "GitHub Actions"
           git config user.email "github-actions@users.noreply.github.com"
 
