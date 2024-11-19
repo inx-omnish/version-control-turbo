@@ -12,6 +12,7 @@ jobs:
       - name: Checkout Monorepo
         uses: actions/checkout@v3
         with:
+          token: ${{ secrets.MONOREPO_PAT }}  # Use PAT instead of GITHUB_TOKEN
           fetch-depth: 0
 
       - name: Set up Git
@@ -36,18 +37,19 @@ jobs:
             git merge doc-repo/main --allow-unrelated-histories -X theirs -m "Merge updates from doc repo with theirs strategy"
           fi
 
-
       - name: Create Branch for Sync
         run: |
           TIMESTAMP=$(date +%s)
           BRANCH_NAME="sync-${SOURCE_REPO##*/}-${TIMESTAMP}"
           git checkout -b $BRANCH_NAME
           git push origin $BRANCH_NAME
+        env:
+          GITHUB_TOKEN: ${{ secrets.MONOREPO_PAT }}  # Use PAT for pushing changes
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.MONOREPO_PAT }}  # Use PAT to create the PR
           branch: $BRANCH_NAME
           title: "Sync updates from $SOURCE_REPO"
           body: "Automated PR to sync changes from $SOURCE_REPO main branch."
