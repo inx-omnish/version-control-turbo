@@ -40,7 +40,7 @@ jobs:
           if [[ "$SOURCE_REPO" == *"/version-control-turbo-web" ]]; then
             git checkout web-repo/main -- apps/web  # Merge only changes to the apps/web directory
           elif [[ "$SOURCE_REPO" == *"/version-control-turbo-doc" ]]; then
-            git checkout doc-repo/main -- apps/doc  # Merge only changes to the apps/doc directory
+            git checkout doc-repo/main -- apps/docs  # Merge only changes to the apps/doc directory
           fi
 
       - name: Create Branch for Sync Changes
